@@ -45,32 +45,32 @@ const data = {
   navMain: [
     {
       title: "Dashboard",
-      url: "#",
+      url: "/dashboard",
       icon: IconDashboard,
     },
     {
       title: "Booking",
-      url: "#",
+      url: "/dashboard/booking",
       icon: IconCalendarEvent,
     },
     {
       title: "Availability",
-      url: "#",
+      url: "/dashboard/availability",
       icon: IconClockCheck,
     },
     {
       title: "Calendar",
-      url: "#",
+      url: "/dashboard/calendar",
       icon: IconCalendar,
     },
     {
       title: "Analytics",
-      url: "#",
+      url: "/dashboard/analytics",
       icon: IconChartBar,
     },
     {
       title: "Team",
-      url: "#",
+      url: "/dashboard/team",
       icon: IconUsers,
     },
   ],
