@@ -72,3 +72,4 @@ cypress/screenshots/
 
 # Misc
 *.local
+/lib/generated/prisma

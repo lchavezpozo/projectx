@@ -1,0 +1,240 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SuperAdminRole {
+  SUPER_ADMIN
+  SYSTEM_ADMIN
+  SUPPORT_ADMIN
+  FINANCE_ADMIN
+}
+
+model SuperAdmin {
+  id          String    @id @default(cuid())
+  email       String    @unique
+  password    String
+  name        String
+  role        SuperAdminRole @default(SUPPORT_ADMIN)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Company {
+  id          String    @id @default(cuid())
+  name        String
+  branches    Branch[]
+  members     CompanyMember[]
+  subscription Subscription?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Branch {
+  id          String    @id @default(cuid())
+  name        String
+  address     String
+  companyId   String
+  company     Company   @relation(fields: [companyId], references: [id])
+  services    ServiceBranch[]
+  bookings    Booking[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([companyId])
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String
+  companies     CompanyMember[]
+  staff         Staff?
+  client        Client?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Staff {
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  user        User      @relation(fields: [userId], references: [id])
+  companyMemberId String @unique
+  companyMember CompanyMember @relation(fields: [companyMemberId], references: [id])
+  name        String
+  services    ServiceProvider[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([companyMemberId])
+}
+
+model Client {
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  user        User      @relation(fields: [userId], references: [id])
+  companyMemberId String @unique
+  companyMember CompanyMember @relation(fields: [companyMemberId], references: [id])
+  name        String
+  phone       String?
+  bookings    Booking[] @relation("ClientBookings")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([companyMemberId])
+}
+
+model Service {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  duration    Int       // duración en minutos
+  basePrice   Float     // precio base sugerido del servicio
+  branches    ServiceBranch[]
+  providers   ServiceProvider[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model ServiceBranch {
+  id          String    @id @default(cuid())
+  serviceId   String
+  branchId    String
+  price       Float     // precio específico en esta sucursal
+  service     Service   @relation(fields: [serviceId], references: [id])
+  branch      Branch    @relation(fields: [branchId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([serviceId, branchId])
+  @@index([serviceId])
+  @@index([branchId])
+}
+
+model ServiceProvider {
+  id          String    @id @default(cuid())
+  serviceId   String
+  staffId     String
+  price       Float     // precio específico que cobra este profesional
+  service     Service   @relation(fields: [serviceId], references: [id])
+  staff       Staff     @relation(fields: [staffId], references: [id])
+  bookings    Booking[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([serviceId, staffId])
+  @@index([serviceId])
+  @@index([staffId])
+}
+
+model Booking {
+  id          String    @id @default(cuid())
+  clientId    String
+  serviceProviderId String
+  branchId    String
+  startTime   DateTime
+  endTime     DateTime
+  status      BookingStatus @default(PENDING)
+  notes       String?
+  client      Client    @relation("ClientBookings", fields: [clientId], references: [id])
+  serviceProvider ServiceProvider @relation(fields: [serviceProviderId], references: [id])
+  branch      Branch    @relation(fields: [branchId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([clientId])
+  @@index([serviceProviderId])
+  @@index([branchId])
+  @@index([startTime])
+}
+
+model CompanyMember {
+  id          String    @id @default(cuid())
+  userId      String
+  companyId   String
+  role        CompanyRole @default(MEMBER)
+  user        User      @relation(fields: [userId], references: [id])
+  company     Company   @relation(fields: [companyId], references: [id])
+  staff       Staff?
+  client      Client?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([userId, companyId])
+  @@index([userId])
+  @@index([companyId])
+}
+
+model Subscription {
+  id          String    @id @default(cuid())
+  companyId   String    @unique
+  company     Company   @relation(fields: [companyId], references: [id])
+  plan        SubscriptionPlan
+  status      SubscriptionStatus @default(ACTIVE)
+  startDate   DateTime
+  endDate     DateTime
+  maxUsers    Int
+  maxBranches Int
+  features    Json      // características específicas del plan
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+enum CompanyRole {
+  OWNER
+  ADMIN
+  STAFF
+  MEMBER
+}
+
+enum SubscriptionPlan {
+  FREE
+  BASIC
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+  EXPIRED
+}
+
+  // features de los planes
+  //  {
+  //    "maxBookingsPerDay": 50,
+  //    "customDomain": true,
+  //    "advancedAnalytics": true,
+  //    "emailNotifications": {
+  //      "bookingReminders": true,
+  //      "marketing": false
+  //    },
+  //    "integrations": {
+  //      "googleCalendar": true,
+  //      "stripe": true
+  //    },
+  //    "customization": {
+  //      "branding": true,
+  //      "customFields": 5
+  //    }
+  //  }
