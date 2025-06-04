@@ -24,10 +24,16 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3001
 
+# Instalar Prisma CLI globalmente
+RUN npm install -g prisma
+
 # Copiar archivos necesarios desde la etapa de construcción
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
 # Exponer el puerto
 EXPOSE 3001

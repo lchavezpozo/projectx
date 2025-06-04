@@ -14,27 +14,25 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum SuperAdminRole {
-  SUPER_ADMIN
-  SYSTEM_ADMIN
-  SUPPORT_ADMIN
-  FINANCE_ADMIN
+enum SystemRole {
+  SUPER_ADMIN      // Acceso total al sistema
+  SYSTEM_ADMIN     // Administración del sistema
+  SUPPORT_ADMIN    // Soporte a usuarios y empresas
+  FINANCE_ADMIN    // Gestión de suscripciones y pagos
 }
 
-model SuperAdmin {
-  id          String    @id @default(cuid())
-  email       String    @unique
-  password    String
-  name        String
-  role        SuperAdminRole @default(SUPPORT_ADMIN)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+enum CompanyRole {
+  OWNER
+  ADMIN 
+  STAFF      // solo estos pueden tener entrada en `Staff`
+  CLIENT     // solo estos pueden tener entrada en `Client`
 }
 
 model Company {
   id          String    @id @default(cuid())
   name        String
-  branches    Branch[]
+  timezone    String    @default("UTC") // Ejemplo: "America/Mexico_City"
+  branches    Branch[] // para revisar nombre Locations 
   members     CompanyMember[]
   subscription Subscription?
   createdAt   DateTime  @default(now())
@@ -59,21 +57,20 @@ model User {
   id            String    @id @default(cuid())
   email         String    @unique
   password      String
+  name          String
+  phone         String?
+  systemRole    SystemRole?
   companies     CompanyMember[]
-  staff         Staff?
-  client        Client?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
 
 model Staff {
   id          String    @id @default(cuid())
-  userId      String    @unique
-  user        User      @relation(fields: [userId], references: [id])
   companyMemberId String @unique
   companyMember CompanyMember @relation(fields: [companyMemberId], references: [id])
-  name        String
-  services    ServiceProvider[]
+  services    ServiceProvider[] // ServiceBranch
+  absences    StaffAbsence[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -82,16 +79,13 @@ model Staff {
 
 model Client {
   id          String    @id @default(cuid())
-  userId      String    @unique
-  user        User      @relation(fields: [userId], references: [id])
   companyMemberId String @unique
   companyMember CompanyMember @relation(fields: [companyMemberId], references: [id])
-  name        String
-  phone       String?
   bookings    Booking[] @relation("ClientBookings")
+  reviews     Review[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
-
+  
   @@index([companyMemberId])
 }
 
@@ -102,7 +96,6 @@ model Service {
   duration    Int       // duración en minutos
   basePrice   Float     // precio base sugerido del servicio
   branches    ServiceBranch[]
-  providers   ServiceProvider[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }
@@ -114,6 +107,7 @@ model ServiceBranch {
   price       Float     // precio específico en esta sucursal
   service     Service   @relation(fields: [serviceId], references: [id])
   branch      Branch    @relation(fields: [branchId], references: [id])
+  providers   ServiceProvider[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -124,17 +118,18 @@ model ServiceBranch {
 
 model ServiceProvider {
   id          String    @id @default(cuid())
-  serviceId   String
+  serviceBranchId String
   staffId     String
   price       Float     // precio específico que cobra este profesional
-  service     Service   @relation(fields: [serviceId], references: [id])
+  serviceBranch ServiceBranch @relation(fields: [serviceBranchId], references: [id])
   staff       Staff     @relation(fields: [staffId], references: [id])
   bookings    Booking[]
+  availabilitySlots AvailabilitySlot[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  @@unique([serviceId, staffId])
-  @@index([serviceId])
+  @@unique([serviceBranchId, staffId])
+  @@index([serviceBranchId])
   @@index([staffId])
 }
 
@@ -150,6 +145,7 @@ model Booking {
   client      Client    @relation("ClientBookings", fields: [clientId], references: [id])
   serviceProvider ServiceProvider @relation(fields: [serviceProviderId], references: [id])
   branch      Branch    @relation(fields: [branchId], references: [id])
+  review      Review?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -161,9 +157,9 @@ model Booking {
 
 model CompanyMember {
   id          String    @id @default(cuid())
-  userId      String
+  userId      String 
   companyId   String
-  role        CompanyRole @default(MEMBER)
+  role        CompanyRole @default(CLIENT)
   user        User      @relation(fields: [userId], references: [id])
   company     Company   @relation(fields: [companyId], references: [id])
   staff       Staff?
@@ -191,19 +187,48 @@ model Subscription {
   updatedAt   DateTime  @updatedAt
 }
 
+model AvailabilityTemplate {
+  id        String   @id @default(cuid())
+  name      String
+  isActive  Boolean  @default(false)
+  slots     AvailabilitySlot[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum Weekday {
+  SUNDAY
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+}
+
+model AvailabilitySlot {
+  id              String   @id @default(cuid())
+  templateId      String
+  serviceProviderId String
+  weekday         Weekday
+  startTime       String   // Formato: "HH:mm" en 24h 8:00
+  endTime         String   // Formato: "HH:mm" en 24h 09:00
+  template        AvailabilityTemplate @relation(fields: [templateId], references: [id])
+  serviceProvider ServiceProvider @relation(fields: [serviceProviderId], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([templateId, weekday])
+  @@index([serviceProviderId])
+  @@unique([templateId, serviceProviderId, weekday, startTime, endTime])
+}
+
 enum BookingStatus {
   PENDING
   CONFIRMED
   CANCELLED
   COMPLETED
   NO_SHOW
-}
-
-enum CompanyRole {
-  OWNER
-  ADMIN
-  STAFF
-  MEMBER
 }
 
 enum SubscriptionPlan {
@@ -220,21 +245,87 @@ enum SubscriptionStatus {
   EXPIRED
 }
 
-  // features de los planes
-  //  {
-  //    "maxBookingsPerDay": 50,
-  //    "customDomain": true,
-  //    "advancedAnalytics": true,
-  //    "emailNotifications": {
-  //      "bookingReminders": true,
-  //      "marketing": false
-  //    },
-  //    "integrations": {
-  //      "googleCalendar": true,
-  //      "stripe": true
-  //    },
-  //    "customization": {
-  //      "branding": true,
-  //      "customFields": 5
-  //    }
-  //  }
+enum AbsenceType {
+  VACATION
+  SICK_LEAVE
+  PERSONAL_DAY
+  HOLIDAY
+  OTHER
+}
+
+model StaffAbsence {
+  id          String      @id @default(cuid())
+  staffId     String // 
+  type        AbsenceType
+  startDate   DateTime
+  endDate     DateTime
+  description String?
+  isApproved  Boolean     @default(false)
+  staff       Staff       @relation(fields: [staffId], references: [id])
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([staffId])
+  @@index([startDate, endDate])
+}
+
+enum NotificationType {
+  BOOKING_CONFIRMATION
+  BOOKING_REMINDER
+  BOOKING_CANCELLATION
+  BOOKING_RESCHEDULE
+  REVIEW_REQUEST
+  PROMOTION
+}
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+  PUSH
+}
+
+model Notification {
+  id          String            @id @default(cuid())
+  type        NotificationType
+  channel     NotificationChannel
+  recipientId String
+  title       String
+  content     String
+  isRead      Boolean          @default(false)
+  metadata    Json?            // Datos adicionales específicos de la notificación
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([recipientId])
+  @@index([type])
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum Rating {
+  ONE_STAR
+  TWO_STARS
+  THREE_STARS
+  FOUR_STARS
+  FIVE_STARS
+}
+
+model Review {
+  id          String        @id @default(cuid())
+  bookingId   String        @unique
+  clientId    String
+  rating      Rating
+  comment     String?
+  status      ReviewStatus  @default(PENDING)
+  booking     Booking       @relation(fields: [bookingId], references: [id])
+  client      Client        @relation(fields: [clientId], references: [id])
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([clientId])
+  @@index([status])
+}
