@@ -35,14 +35,24 @@ jobs:
         git config user.email "github-actions[bot]@users.noreply.github.com"
         
         # Obtener la última version
-        LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+        LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+        
+        # Si no hay tags previos, empezar con v0.0.0
+        if [ -z "$LATEST_TAG" ]; then
+          LATEST_TAG="v0.0.0"
+          # Para el primer release, analizar todos los commits
+          COMMIT_RANGE="HEAD"
+        else
+          # Para releases subsecuentes, analizar desde el último tag
+          COMMIT_RANGE="$LATEST_TAG..HEAD"
+        fi
         
         # Determinar el tipo de release basado en commits
-        if git log $LATEST_TAG..HEAD --pretty=format:"%s" | grep -q "feat\|feature"; then
+        if git log $COMMIT_RANGE --pretty=format:"%s" | grep -q "feat\|feature"; then
           RELEASE_TYPE="minor"
-        elif git log $LATEST_TAG..HEAD --pretty=format:"%s" | grep -q "fix\|bugfix"; then
+        elif git log $COMMIT_RANGE --pretty=format:"%s" | grep -q "fix\|bugfix"; then
           RELEASE_TYPE="patch"
-        elif git log $LATEST_TAG..HEAD --pretty=format:"%s" | grep -q "BREAKING CHANGE\|!:"; then
+        elif git log $COMMIT_RANGE --pretty=format:"%s" | grep -q "BREAKING CHANGE\|!:"; then
           RELEASE_TYPE="major"
         else
           RELEASE_TYPE="patch"
@@ -74,8 +84,14 @@ jobs:
         git push origin $NEW_TAG
         
         # Crear changelog
-        echo "## Changes since $LATEST_TAG" > release_notes.md
-        git log $LATEST_TAG..HEAD --pretty=format:"- %s (%h)" >> release_notes.md
+        echo "## Changes" > release_notes.md
+        if [ "$COMMIT_RANGE" = "HEAD" ]; then
+          echo "### Initial release" >> release_notes.md
+          git log --pretty=format:"- %s (%h)" | head -10 >> release_notes.md
+        else
+          echo "### Changes since $LATEST_TAG" >> release_notes.md
+          git log $COMMIT_RANGE --pretty=format:"- %s (%h)" >> release_notes.md
+        fi
         
         # Crear release en GitHub
         gh release create $NEW_TAG \
