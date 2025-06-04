@@ -24,8 +24,14 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3001
 
-# Instalar Prisma CLI globalmente
-RUN npm install -g prisma
+# Instalar Prisma CLI y tsx globalmente
+RUN npm install -g prisma tsx
+
+# Copiar package.json y package-lock.json para instalar dependencias
+COPY package.json package-lock.json ./
+
+# Instalar todas las dependencias (incluyendo devDependencies para tsx)
+RUN npm ci
 
 # Copiar archivos necesarios desde la etapa de construcción
 COPY --from=builder /app/public ./public
@@ -35,8 +41,9 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
-# Exponer el puerto
+# Exponer los puertos
 EXPOSE 3001
+EXPOSE 5555
 
 # Comando para iniciar la aplicación
 CMD ["node", "server.js"] 
