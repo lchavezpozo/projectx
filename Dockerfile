@@ -41,9 +41,18 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
+# Copiar script de entrypoint
+COPY scripts/docker-entrypoint.sh /entrypoint.sh
+
+# Hacer el script ejecutable
+RUN chmod +x /entrypoint.sh
+
 # Exponer los puertos
 EXPOSE 3001
 EXPOSE 5555
+
+# Usar el script de entrypoint
+ENTRYPOINT ["/entrypoint.sh"]
 
 # Comando para iniciar la aplicación
 CMD ["node", "server.js"] 

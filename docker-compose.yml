@@ -1,56 +1,48 @@
+version: '3.8'
+
 services:
   # Servicio de desarrollo
   dev:
     build:
       context: .
       target: builder
-    command: npm run dev -- -p 3001
+    command: npm run dev
     ports:
-      - "3001:3001"
+      - "3000:3000"
     volumes:
       - .:/app
       - /app/node_modules
-      - /app/.next
     environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       - NODE_ENV=development
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/agendia
     networks:
       - agendia-network
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
 
-  # Servicio de producción
+  # Servicio de producción (puede usar imagen local o del registry)
   prod:
+    image: ${PROD_IMAGE:-}
     build:
       context: .
       target: runner
+    command: node server.js
     ports:
       - "3001:3001"
-    environment:
-      - NODE_ENV=production
-      - PORT=3001
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/agendia
-    networks:
-      - agendia-network
-    depends_on:
-      - postgres
-
-  # Servicio de Prisma Studio
-  prisma-studio:
-    image: node:20-alpine
-    working_dir: /app
-    command: sh -c "npm install && npx prisma studio --port 5555"
-    ports:
       - "5555:5555"
     volumes:
       - .:/app
       - /app/node_modules
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/agendia
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - NODE_ENV=production
     networks:
       - agendia-network
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
 
   # Servicio de base de datos
   postgres:
@@ -58,13 +50,19 @@ services:
     ports:
       - "5432:5432"
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=agendia
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - agendia-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
 
 networks:
   agendia-network:
