@@ -3,16 +3,92 @@ name: Build and Deploy Docker Image
 on:
   push:
     branches: [ main, master ]
-  release:
-    types: [ published ]
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  # Job para crear release automático
+  release:
+    runs-on: ubuntu-latest
+    if: ${{ !contains(github.event.head_commit.message, 'chore(release)') }}
+    permissions:
+      contents: write
+      packages: write
+    outputs:
+      new_tag: ${{ steps.release.outputs.new_tag }}
+      release_created: ${{ steps.release.outputs.release_created }}
+      
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Create Release
+      id: release
+      run: |
+        # Configurar git
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        
+        # Obtener la última version
+        LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+        
+        # Determinar el tipo de release basado en commits
+        if git log $LATEST_TAG..HEAD --pretty=format:"%s" | grep -q "feat\|feature"; then
+          RELEASE_TYPE="minor"
+        elif git log $LATEST_TAG..HEAD --pretty=format:"%s" | grep -q "fix\|bugfix"; then
+          RELEASE_TYPE="patch"
+        elif git log $LATEST_TAG..HEAD --pretty=format:"%s" | grep -q "BREAKING CHANGE\|!:"; then
+          RELEASE_TYPE="major"
+        else
+          RELEASE_TYPE="patch"
+        fi
+        
+        # Calcular nueva versión
+        CURRENT_VERSION=${LATEST_TAG#v}
+        IFS='.' read -ra VERSION_PARTS <<< "$CURRENT_VERSION"
+        MAJOR=${VERSION_PARTS[0]:-0}
+        MINOR=${VERSION_PARTS[1]:-0}
+        PATCH=${VERSION_PARTS[2]:-0}
+        
+        case $RELEASE_TYPE in
+          major)
+            NEW_VERSION="$((MAJOR + 1)).0.0"
+            ;;
+          minor)
+            NEW_VERSION="$MAJOR.$((MINOR + 1)).0"
+            ;;
+          patch)
+            NEW_VERSION="$MAJOR.$MINOR.$((PATCH + 1))"
+            ;;
+        esac
+        
+        NEW_TAG="v$NEW_VERSION"
+        
+        # Crear tag
+        git tag -a $NEW_TAG -m "Release $NEW_TAG"
+        git push origin $NEW_TAG
+        
+        # Crear changelog
+        echo "## Changes since $LATEST_TAG" > release_notes.md
+        git log $LATEST_TAG..HEAD --pretty=format:"- %s (%h)" >> release_notes.md
+        
+        # Crear release en GitHub
+        gh release create $NEW_TAG \
+          --title "Release $NEW_TAG" \
+          --notes-file release_notes.md \
+          --generate-notes
+        
+        echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
+        echo "release_created=true" >> $GITHUB_OUTPUT
+
   build-and-push:
     runs-on: ubuntu-latest
+    needs: release
     permissions:
       contents: read
       packages: write
@@ -20,6 +96,8 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Necesario para obtener tags
 
     - name: Create .env file
       run: |
