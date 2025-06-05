@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 set -e
 
@@ -37,7 +37,7 @@ log "📋 Variables de entorno verificadas"
 
 # Esperar a que la base de datos esté disponible
 log "⏳ Esperando que la base de datos esté disponible..."
-until npx prisma db execute --stdin <<< "SELECT 1;" > /dev/null 2>&1; do
+until echo "SELECT 1;" | npx prisma db execute --stdin > /dev/null 2>&1; do
     log "Base de datos no disponible aún, esperando 2 segundos..."
     sleep 2
 done
@@ -56,7 +56,7 @@ success "Migraciones ejecutadas"
 
 # Verificar si hay datos en la base de datos
 log "🔍 Verificando si la base de datos tiene datos..."
-USER_COUNT=$(npx prisma db execute --stdin <<< "SELECT COUNT(*) FROM \"User\";" 2>/dev/null | tail -n 1 | tr -d ' ')
+USER_COUNT=$(echo "SELECT COUNT(*) FROM \"User\";" | npx prisma db execute --stdin 2>/dev/null | tail -n 1 | tr -d ' ')
 
 if [ "$USER_COUNT" = "0" ] || [ -z "$USER_COUNT" ]; then
     log "📝 Base de datos vacía, ejecutando seed..."

@@ -53,6 +53,14 @@ fi
 # Cargar variables de entorno
 source .env
 
+# Exportar variables críticas para docker-compose
+export POSTGRES_USER
+export POSTGRES_PASSWORD  
+export POSTGRES_DB
+export GITHUB_REPOSITORY
+export PROD_IMAGE
+export FORCE_SEED
+
 # Validar variables críticas
 validate_env() {
     local missing_vars=()

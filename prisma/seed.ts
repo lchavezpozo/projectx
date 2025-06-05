@@ -69,7 +69,7 @@ async function main() {
   console.log('✅ Sucursales creadas');
 
   // 3. Crear servicios
-  const services: Service[] = await Promise.all([
+  const services = await Promise.all([
     prisma.service.create({
       data: {
         name: 'Corte de Cabello',
@@ -115,7 +115,7 @@ async function main() {
   console.log('✅ Servicios creados');
 
   // 4. Crear ServiceBranch (servicios disponibles en cada sucursal)
-  const serviceBranches: ServiceBranch[] = [];
+  const serviceBranches = [];
   for (const branch of branches) {
     for (const service of services) {
       const serviceBranch = await prisma.serviceBranch.create({
@@ -132,7 +132,7 @@ async function main() {
   console.log('✅ Servicios por sucursal creados');
 
   // 5. Crear usuarios staff para cada empresa (10 por empresa)
-  const staffMembers: Staff[] = [];
+  const staffMembers = [];
 
   for (let companyIndex = 0; companyIndex < companies.length; companyIndex++) {
     const company = companies[companyIndex];
@@ -168,7 +168,7 @@ async function main() {
   console.log('✅ Staff creado');
 
   // 6. Crear ServiceProviders (staff que ofrece servicios)
-  const serviceProviders: ServiceProvider[] = [];
+  const serviceProviders = [];
   for (const staff of staffMembers) {
     // Cada staff ofrece 2-3 servicios aleatorios
     const numberOfServices = 2 + Math.floor(Math.random() * 2);
@@ -200,7 +200,7 @@ async function main() {
   console.log('✅ Proveedores de servicios creados');
 
   // 7. Crear clientes para cada empresa (20 por empresa)
-  const clients: Client[] = [];
+  const clients = [];
   for (let companyIndex = 0; companyIndex < companies.length; companyIndex++) {
     const company = companies[companyIndex];
     
