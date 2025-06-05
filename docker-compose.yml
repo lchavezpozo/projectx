@@ -13,7 +13,7 @@ services:
       - .:/app
       - /app/node_modules
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - DATABASE_URL=${DATABASE_URL}
       - NODE_ENV=development
     networks:
       - agendia-network
@@ -31,13 +31,10 @@ services:
       - "3001:3001"
       - "5555:5555"
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@aws-0-us-east-2.pooler.supabase.com:5432/${POSTGRES_DB}
+      - DATABASE_URL=${DATABASE_URL}
       - NODE_ENV=production
     networks:
       - agendia-network
-    depends_on:
-      postgres:
-        condition: service_healthy
     restart: unless-stopped
 
   # Servicio de base de datos
