@@ -35,14 +35,15 @@ fi
 
 log "📋 Variables de entorno verificadas"
 
-# Esperar a que la base de datos esté disponible
-log "⏳ Esperando que la base de datos esté disponible..."
-until echo "SELECT 1;" | npx prisma db execute --stdin > /dev/null 2>&1; do
-    log "Base de datos no disponible aún, esperando 2 segundos..."
-    sleep 2
-done
+# Esperar a que la base de datos esté disponible (DESHABILITADO TEMPORALMENTE)
+# log "⏳ Esperando que la base de datos esté disponible..."
+# until echo "SELECT 1;" | npx prisma db execute --stdin > /dev/null 2>&1; do
+#     log "Base de datos no disponible aún, esperando 2 segundos..."
+#     sleep 2
+# done
+# success "Base de datos está disponible"
 
-success "Base de datos está disponible"
+log "⚠️  Verificación de BD deshabilitada - iniciando directamente..."
 
 # Generar cliente de Prisma
 log "🔧 Generando cliente de Prisma..."
